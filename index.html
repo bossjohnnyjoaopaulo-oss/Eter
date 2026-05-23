@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Éter - O Espelho da Alma</title>
+  
+  <!-- Firebase SDKs -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, query, orderBy, limit, getDocs, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+    
+    // Tua configuração
+    const firebaseConfig = {
+      apiKey: "AIzaSyB0xstmRaa_sSre5aISPB4ZmNR1d6zvePo",
+      authDomain: "eterprojecto-36798.firebaseapp.com",
+      projectId: "eterprojecto-36798",
+      storageBucket: "eterprojecto-36798.firebasestorage.app",
+      messagingSenderId: "1014990812804",
+      appId: "1:1014990812804:web:8e933f1ca03748c6a4b4d1",
+      measurementId: "G-YKQFD31PZW"
+    };
+    
+    // Inicializar Firebase
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth(app);
+    
+    // Disponibilizar globalmente
+    window.firebaseDB = db;
+    window.firebaseAuth = auth;
+    
+    console.log('🔥 Firebase conectado!');
+  </script>
+  
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      background: #0a0a0f;
+      color: #e0e0ff;
+      font-family: 'Segoe UI', sans-serif;
+      overflow-x: hidden;
+      min-height: 100vh;
+    }
+    
+    #canvasAlma {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    
+    .conteudo {
+      position: relative;
+      z-index: 1;
+      max-width: 750px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    h1 {
+      color: #8b7fff;
+      text-shadow: 0 0 30px #8b7fff50;
+      font-size: 2.8em;
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    .subtitulo {
+      text-align: center;
+      opacity: 0.6;
+      margin-bottom: 20px;
+      font-style: italic;
+    }
+    
+    .grid {
+      display: grid;
+      gap: 15px;
+    }
+    
+    .card {
+      background: #1a1a2e80;
+      backdrop-filter: blur(20px);
+      border-radius: 20px;
+      padding: 20px;
+      border: 1px solid #8b7fff20;
+    }
+    
+    .card-titulo {
+      color: #8b7fff;
+      font-size: 0.8em;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+    
+    #video {
+      width: 100%;
+      max-width: 280px;
+      border-radius: 15px;
+      border: 2px solid #8b7fff30;
+      transform: scaleX(-1);
+      display: block;
+      margin: 0 auto;
+    }
+    
+    .contexto-input {
+      width: 100%;
+      margin: 15px 0;
+      padding: 12px;
+      border-radius: 15px;
+      border: 1px solid #8b7fff30;
+      background: #0a0a0f80;
+      color: #e0e0ff;
+      font-size: 0.9em;
+      resize: none;
+      backdrop-filter: blur(10px);
+      font-family: inherit;
+    }
+    .contexto-input::placeholder { color: #8b7fff40; }
+    
+    .estado {
+      text-align: center;
+      padding: 20px;
+      border-radius: 20px;
+      transition: all 0.8s ease;
+    }
+    .estado h2 { font-size: 2em; margin: 0 0 10px 0; }
+    .estado p { opacity: 0.9; }
+    
+    .calmo { background: linear-gradient(135deg, #11998e50, #38ef7d30); }
+    .confuso { background: linear-gradient(135deg, #ff6b6b50, #ff8e5330); }
+    .animado { background: linear-gradient(135deg, #00d2ff50, #3a7bd530); }
+    .travado { background: linear-gradient(135deg, #667eea50, #764ba230); }
+    .reflexivo { background: linear-gradient(135deg, #8E2DE250, #4A00E030); }
+    .curioso { background: linear-gradient(135deg, #F2994A50, #F2C94C30); }
+    
+    .oraculo-box {
+      padding: 15px;
+      background: #1a1a2e80;
+      border-radius: 15px;
+      border-left: 4px solid #8b7fff;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transform: translateY(20px);
+      transition: all 0.5s ease;
+      margin-top: 15px;
+      text-align: left;
+    }
+    .oraculo-box.visivel { opacity: 1; transform: translateY(0); }
+    .oraculo-titulo {
+      color: #8b7fff;
+      font-weight: bold;
+      margin-bottom: 8px;
+      font-size: 0.75em;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+    .oraculo-texto { font-style: italic; line-height: 1.5; color: #c0c0ff; }
+    
+    .sensores {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 8px;
+      text-align: center;
+    }
+    .sensor-valor {
+      font-size: 1.6em;
+      font-weight: bold;
+      color: #8b7fff;
+    }
+    .sensor-label {
+      font-size: 0.6em;
+      opacity: 0.5;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    
+    #graficoDiario {
+      width: 100%;
+      height: 130px;
+      border-radius: 15px;
+      margin-top: 10px;
+    }
+    
+    .diario-timeline {
+      display: flex;
+      gap: 5px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+    .diario-evento {
+      font-size: 0.65em;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: #8b7fff20;
+      color: #c0c0ff;
+      white-space: nowrap;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .diario-evento:hover {
+      background: #8b7fff40;
+      transform: scale(1.05);
+    }
+    
+    .botoes {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    
+    button {
+      background: #8b7fff;
+      border: none;
+      padding: 12px 25px;
+      border-radius: 50px;
+      color: white;
+      font-size: 1em;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 5px 20px #8b7fff20;
+      flex: 1;
+      min-width: 140px;
+      font-family: inherit;
+    }
+    button:hover { background: #a397ff; transform: translateY(-2px); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; }
+    button.secundario { background: transparent; border: 1px solid #8b7fff; }
+    button.perigo { background: transparent; border: 1px solid #ff6b6b; color: #ff6b6b; }
+    
+    .sessoes-lista {
+      margin-top: 10px;
+      max-height: 150px;
+      overflow-y: auto;
+    }
+    .sessao-item {
+      padding: 10px;
+      border-radius: 10px;
+      background: #8b7fff10;
+      margin-bottom: 5px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-size: 0.8em;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .sessao-item:hover { background: #8b7fff20; }
+    .sessao-data { opacity: 0.5; font-size: 0.8em; }
+    
+    .auth-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.75em;
+      opacity: 0.7;
+      margin-bottom: 10px;
+    }
+    .auth-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #38ef7d;
+    }
+    
+    details { opacity: 0.7; font-size: 0.75em; margin: 10px 0; }
+    details summary { cursor: pointer; color: #8b7fff; }
+    
+    input[type="password"] {
+      width: 100%;
+      padding: 8px;
+      border-radius: 10px;
+      border: 1px solid #8b7fff20;
+      background: #0a0a0f;
+      color: #e0e0ff;
+      font-size: 0.8em;
+      margin-top: 5px;
+      font-family: inherit;
+    }
+    
+    .debug {
+      font-family: 'Courier New', monospace;
+      font-size: 0.65em;
+      opacity: 0.4;
+      padding: 10px;
+      background: #0a0a0f;
+      border-radius: 10px;
+      word-break: break-all;
+      margin-top: 10px;
+    }
+    
+    .nuvem-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.65em;
+      background: #38ef7d20;
+      color: #38ef7d;
+      margin-left: 5px;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .sync-animation { animation: pulse 2s infinite; }
+  </style>
+</head>
+
+<body>
+  <canvas id="canvasAlma"></canvas>
+  
+  <div class="conteudo">
+    <h1>🌌 Éter <span class="nuvem-badge sync-animation" id="nuvemBadge" style="display:none;">☁️ Nuvem</span></h1>
+    <p class="subtitulo">O Espelho da Alma Criativa</p>
+    
+    <!-- Status de autenticação -->
+    <div class="auth-status" id="authStatus">
+      <div class="auth-dot" id="authDot" style="background: #ff6b6b;"></div>
+      <span id="authTexto">A conectar ao Éter Nuvem...</span>
+    </div>
+    
+    <div class="grid">
+      <!-- Card: Câmera + Contexto -->
+      <div class="card">
+        <div class="card-titulo">📷 Sensor de Presença</div>
+        <video id="video" autoplay muted playsinline></video>
+        <textarea id="contexto" class="contexto-input" rows="2" 
+          placeholder="🗣️ O que estás a tentar criar?"></textarea>
+        
+        <details>
+          <summary>🔑 Chave API Gemini (opcional)</summary>
+          <input type="password" id="apiKey" placeholder="Cola a tua chave API...">
+        </details>
+        
+        <div class="botoes">
+          <button onclick="iniciar()" id="btnIniciar">🔮 Ativar Éter</button>
+          <button class="secundario" onclick="toggleAudio()" id="btnAudio" disabled>🔇 Som</button>
+        </div>
+      </div>
+      
+      <!-- Card: Estado + Oráculo -->
+      <div class="card estado calmo" id="estadoBox">
+        <h2 id="estadoTexto">🌿 Calmo</h2>
+        <p id="estadoDesc">O Éter aguarda a tua presença...</p>
+        <div class="oraculo-box" id="oraculoBox">
+          <div class="oraculo-titulo">💫 O Éter Sussurra</div>
+          <div class="oraculo-texto" id="oraculoTexto"></div>
+        </div>
+      </div>
+      
+      <!-- Card: Sensores -->
+      <div class="card">
+        <div class="card-titulo">📊 Vetor de Presença</div>
+        <div class="sensores">
+          <div><div class="sensor-valor" id="faceScore">0</div><div class="sensor-label">Expressão</div></div>
+          <div><div class="sensor-valor" id="voiceScore">0</div><div class="sensor-label">Voz</div></div>
+          <div><div class="sensor-valor" id="moveScore">0</div><div class="sensor-label">Mov</div></div>
+          <div><div class="sensor-valor" id="tiltScore">0</div><div class="sensor-label">Inclin</div></div>
+          <div><div class="sensor-valor" id="pauseScore">0</div><div class="sensor-label">Pausa</div></div>
+        </div>
+      </div>
+      
+      <!-- Card: Diário + Firebase -->
+      <div class="card">
+        <div class="card-titulo">📜 Diário do Éter <span style="opacity:0.5; font-weight:normal;">(Firestore)</span></div>
+        <canvas id="graficoDiario" width="650" height="130"></canvas>
+        <div class="diario-timeline" id="diarioTimeline"></div>
+        
+        <div style="margin-top: 15px; display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="secundario" onclick="guardarSessaoNuvem()" id="btnGuardar" disabled>
+            ☁️ Guardar na Nuvem
+          </button>
+          <button class="secundario" onclick="carregarSessoes()" id="btnCarregar" disabled>
+            📥 Carregar Sessões
+          </button>
+        </div>
+        <div class="sessoes-lista" id="sessoesLista"></div>
+      </div>
+    </div>
+    
+    <div class="debug" id="debug">Vetor: [0,0,0,0,0] | Firebase: a conectar...</div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+  <script>
+    // ============ VARIÁVEIS GLOBAIS ============
+    let video, audioContext, analyser;
+    let faceScore = 0, voiceScore = 0, moveScore = 0, headTiltScore = 0, pauseScore = 0;
+    let lastPos = {x: 0, y: 0, z: 0};
+    let estadoAtual = "calmo";
+    let lastEyePositions = null;
+    let headTiltDirection = "neutro";
+    let recognition;
+    let lastSpeechTime = Date.now();
+    let historicoVetores = [];
+    const TAMANHO_HISTORICO = 15;
+    let eurekaCooldown = false;
+    let ultimoConselho = "";
+    let conselhoCooldown = 0;
+    let audioAtivo = false;
+    let oscillatorNode = null;
+    
+    // Diário local
+    let diarioEventos = [];
+    let historicoDiario = [];
+    const MAX_DIARIO = 200;
+    
+    // Firebase
+    let db = null;
+    let auth = null;
+    let userId = null;
+    let sessaoAtualId = null;
+    
+    // Canvas alma
+    let canvasAlma, ctxAlma;
+    let particulasCanvas = [];
+    
+    // ============ FIREBASE ============
+    async function esperarFirebase() {
+      return new Promise((resolve) => {
+        const check = setInterval(() => {
+          if (window.firebaseDB && window.firebaseAuth) {
+            clearInterval(check);
+            db = window.firebaseDB;
+            auth = window.firebaseAuth;
+            resolve();
+          }
+        }, 100);
+      });
+    }
+    
+    async function iniciarAutenticacao() {
+      try {
+        await signInAnonymously(auth);
+        
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            userId = user.uid;
+            document.getElementById('authDot').style.background = '#38ef7d';
+            document.getElementById('authTexto').textContent = `Conectado: ${user.uid.substring(0, 8)}...`;
+            document.getElementById('nuvemBadge').style.display = 'inline-block';
+            document.getElementById('btnGuardar').disabled = false;
+            document.getElementById('btnCarregar').disabled = false;
+            document.getElementById('debug').textContent += ' | ☁️ Online';
+            console.log('✅ Autenticado:', user.uid);
+          } else {
+            document.getElementById('authDot').style.background = '#ff6b6b';
+            document.getElementById('authTexto').textContent = 'Desconectado da nuvem';
+          }
+        });
+      } catch(e) {
+        console.error('Erro auth:', e);
+        document.getElementById('authTexto').textContent = 'Erro ao conectar à nuvem';
+      }
+    }
+    
+    async function guardarSessaoNuvem() {
+      if (!db || !userId) {
+        alert('Firebase não está conectado ainda. Aguarda...');
+        return;
+      }
+      
+      try {
+        const docRef = await addDoc(collection(db, "sessoes"), {
+          userId: userId,
+          estadoFinal: estadoAtual,
+          contexto: document.getElementById('contexto').value,
+          eventos: diarioEventos.map(e => ({
+            estado: e.estado,
+            emoji: e.emoji,
+            timestamp: e.timestamp?.toISOString()
+          })),
+          historicoGrafico: historicoDiario.slice(-100),
+          vetorFinal: {
+            face: Math.round(faceScore),
+            voice: Math.round(voiceScore),
+            move: Math.round(moveScore),
+            tilt: Math.round(headTiltScore),
+            pause: Math.round(pauseScore)
+          },
+          criadoEm: serverTimestamp()
+        });
+        
+        sessaoAtualId = docRef.id;
+        document.getElementById('debug').textContent += ` | 💾 Sessão guardada: ${docRef.id.substring(0, 8)}...`;
+        
+        // Feedback visual
+        const badge = document.getElementById('nuvemBadge');
+        badge.textContent = '☁️ Guardado!';
+        setTimeout(() => { badge.textContent = '☁️ Nuvem'; }, 2000);
+        
+        // Recarregar lista
+        await carregarSessoes();
+        
+      } catch(e) {
+        console.error('Erro ao guardar:', e);
+        alert('Erro ao guardar na nuvem. Verifica a consola.');
+      }
+    }
+    
+    async function carregarSessoes() {
+      if (!db || !userId) return;
+      
+      try {
+        const q = query(
+          collection(db, "sessoes"),
+          orderBy("criadoEm", "desc"),
+          limit(10)
+        );
+        
+        const snapshot = await getDocs(q);
+        const lista = document.getElementById('sessoesLista');
+        
+        if (snapshot.empty) {
+          lista.innerHTML = '<p style="opacity:0.4; font-size:0.8em;">Nenhuma sessão na nuvem ainda.</p>';
+          return;
+        }
+        
+        lista.innerHTML = snapshot.docs.map(doc => {
+          const data = doc.data();
+          const dataHora = data.criadoEm?.toDate?.() || new Date();
+          const dataStr = dataHora.toLocaleDateString('pt-PT', {
+            day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+          });
+          const estado = data.estadoFinal || 'calmo';
+          const emoji = data.eventos?.slice(-1)[0]?.emoji || '🌿';
+          
+          return `
+            <div class="sessao-item" onclick="carregarSessao('${doc.id}')">
+              <span>${emoji} ${estado} - ${data.contexto?.substring(0, 30) || 'Sem contexto'}</span>
+              <span class="sessao-data">${dataStr}</span>
+            </div>
+          `;
+        }).join('');
+        
+      } catch(e) {
+        console.error('Erro ao carregar:', e);
+      }
+    }
+    
+    async function carregarSessao(id) {
+      // Aqui podes implementar o carregamento completo de uma sessão
+      document.getElementById('debug').textContent += ` | 📥 Sessão selecionada: ${id.substring(0, 8)}...`;
+      alert('Funcionalidade de carregar sessão completa em desenvolvimento! 🚧');
+    }
+    
+    // ============ CANVAS ALMA ============
+    function iniciarCanvasAlma() {
+      canvasAlma = document.getElementById('canvasAlma');
+      canvasAlma.width = window.innerWidth;
+      canvasAlma.height = window.innerHeight;
+      ctxAlma = canvasAlma.getContext('2d');
+      
+      for (let i = 0; i < 40; i++) {
+        particulasCanvas.push({
+          x: Math.random() * canvasAlma.width,
+          y: Math.random() * canvasAlma.height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.4,
+          tamanho: Math.random() * 3 + 1,
+          vida: Math.random() * 100
+        });
+      }
+      
+      animarCanvasAlma();
+    }
+    
+    function coresPorEstado(estado) {
+      const cores = {
+        calmo: { r: 56, g: 239, b: 125 },
+        confuso: { r: 255, g: 107, b: 107 },
+        animado: { r: 0, g: 210, b: 255 },
+        travado: { r: 102, g: 126, b: 234 },
+        reflexivo: { r: 142, g: 45, b: 226 },
+        curioso: { r: 242, g: 153, b: 74 }
+      };
+      return cores[estado] || cores.calmo;
+    }
+    
+    function animarCanvasAlma() {
+      if (!ctxAlma) return;
+      ctxAlma.fillStyle = 'rgba(10, 10, 15, 0.04)';
+      ctxAlma.fillRect(0, 0, canvasAlma.width, canvasAlma.height);
+      
+      const cor = coresPorEstado(estadoAtual);
+      const intensidade = (faceScore + voiceScore + moveScore) / 300;
+      
+      particulasCanvas.forEach(p => {
+        const centroX = canvasAlma.width / 2 + Math.sin(p.vida * 0.02) * 200 * intensidade;
+        const centroY = canvasAlma.height / 2 + Math.cos(p.vida * 0.03) * 200 * intensidade;
+        
+        p.vx += (centroX - p.x) * 0.0005;
+        p.vy += (centroY - p.y) * 0.0005;
+        p.vx *= 0.99;
+        p.vy *= 0.99;
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vida++;
+        
+        if (p.x < 0 || p.x > canvasAlma.width) p.vx *= -1;
+        if (p.y < 0 || p.y > canvasAlma.height) p.vy *= -1;
+        
+        const alpha = 0.3 + intensidade * 0.4;
+        ctxAlma.beginPath();
+        ctxAlma.arc(p.x, p.y, p.tamanho * (1 + intensidade), 0, Math.PI * 2);
+        ctxAlma.fillStyle = `rgba(${cor.r}, ${cor.g}, ${cor.b}, ${alpha})`;
+        ctxAlma.fill();
+        
+        ctxAlma.beginPath();
+        ctxAlma.arc(p.x, p.y, p.tamanho * (2 + intensidade * 2), 0, Math.PI * 2);
+        ctxAlma.fillStyle = `rgba(${cor.r}, ${cor.g}, ${cor.b}, ${alpha * 0.2})`;
+        ctxAlma.fill();
+      });
+      
+      for (let i = 0; i < particulasCanvas.length; i++) {
+        for (let j = i + 1; j < particulasCanvas.length; j++) {
+          const dx = particulasCanvas[i].x - particulasCanvas[j].x;
+          const dy = particulasCanvas[i].y - particulasCanvas[j].y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist < 100) {
+            const alpha = (1 - dist / 100) * 0.15 * intensidade;
+            ctxAlma.beginPath();
+            ctxAlma.moveTo(particulasCanvas[i].x, particulasCanvas[i].y);
+            ctxAlma.lineTo(particulasCanvas[j].x, particulasCanvas[j].y);
+            ctxAlma.strokeStyle = `rgba(${cor.r}, ${cor.g}, ${cor.b}, ${alpha})`;
+            ctxAlma.lineWidth = 0.5;
+            ctxAlma.stroke();
+          }
+        }
+      }
+      
+      requestAnimationFrame(animarCanvasAlma);
+    }
+    
+    // ============ SOM BINAURAL ============
+    function iniciarSomBinaural(estado) {
+      if (!audioAtivo || !audioContext) return;
+      if (oscillatorNode) { try { oscillatorNode.stop(); } catch(e) {} }
+      
+      const frequencias = {
+        calmo: { base: 200, dif: 8 },
+        confuso: { base: 180, dif: 6 },
+        animado: { base: 250, dif: 16 },
+        travado: { base: 160, dif: 4 },
+        reflexivo: { base: 220, dif: 10 },
+        curioso: { base: 240, dif: 14 }
+      };
+      const config = frequencias[estado] || frequencias.calmo;
+      
+      const osc1 = audioContext.createOscillator();
+      const osc2 = audioContext.createOscillator();
+      const gain = audioContext.createGain();
+      osc1.type = 'sine'; osc2.type = 'sine';
+      osc1.frequency.setValueAtTime(config.base, audioContext.currentTime);
+      osc2.frequency.setValueAtTime(config.base + config.dif, audioContext.currentTime);
+      gain.gain.setValueAtTime(0.04, audioContext.currentTime);
+      
+      const p1 = audioContext.createStereoPanner();
+      const p2 = audioContext.createStereoPanner();
+      p1.pan.setValueAtTime(-0.5, audioContext.currentTime);
+      p2.pan.setValueAtTime(0.5, audioContext.currentTime);
+      
+      osc1.connect(p1); p1.connect(gain);
+      osc2.connect(p2); p2.connect(gain);
+      gain.connect(audioContext.destination);
+      osc1.start(); osc2.start();
+      oscillatorNode = osc1;
+    }
+    
+    function toggleAudio() {
+      audioAtivo = !audioAtivo;
+      const btn = document.getElementById('btnAudio');
+      if (audioAtivo) {
+        btn.textContent = '🔊 Som';
+        iniciarSomBinaural(estadoAtual);
+      } else {
+        btn.textContent = '🔇 Som';
+        if (oscillatorNode) { try { oscillatorNode.stop(); } catch(e) {} }
+      }
+    }
+    
+    // ============ DIÁRIO ============
+    function adicionarEventoDiario(evento) {
+      diarioEventos.push({ ...evento, timestamp: new Date() });
+      if (diarioEventos.length > 50) diarioEventos.shift();
+      atualizarDiarioUI();
+    }
+    
+    function atualizarDiarioUI() {
+      document.getElementById('diarioTimeline').innerHTML = 
+        diarioEventos.slice(-10).reverse().map(e => {
+          const hora = e.timestamp.toLocaleTimeString('pt-PT', {hour:'2-digit', minute:'2-digit'});
+          return `<span class="diario-evento">${hora} ${e.emoji} ${e.estado}</span>`;
+        }).join('');
+      desenharGraficoDiario();
+    }
+    
+    function desenharGraficoDiario() {
+      const canvas = document.getElementById('graficoDiario');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const w = canvas.width, h = canvas.height;
+      
+      ctx.fillStyle = '#0a0a0f80';
+      ctx.fillRect(0, 0, w, h);
+      
+      historicoDiario.push({ face: faceScore, voice: voiceScore });
+      if (historicoDiario.length > MAX_DIARIO) historicoDiario.shift();
+      if (historicoDiario.length < 2) return;
+      
+      const passoX = w / historicoDiario.length;
+      
+      ['face', 'voice'].forEach((tipo, idx) => {
+        ctx.beginPath();
+        ctx.strokeStyle = idx === 0 ? '#ff6b6b' : '#00d2ff';
+        ctx.lineWidth = 2;
+        historicoDiario.forEach((p, i) => {
+          const x = i * passoX;
+          const y = h - (p[tipo] / 100) * h;
+          i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        });
+        ctx.stroke();
+      });
+    }
+    
+    // ============ ORÁCULO ============
+    async function gerarConselho(vetor, estado, contexto) {
+      const apiKey = document.getElementById('apiKey').value.trim();
+      if (apiKey && apiKey.length > 10) {
+        return await gerarConselhoGemini(vetor, estado, contexto, apiKey);
+      }
+      return gerarConselhoLocal(vetor, estado, contexto);
+    }
+    
+    async function gerarConselhoGemini(vetor, estado, contexto, apiKey) {
+      try {
+        const r = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+              contents: [{parts: [{text: 
+                `És o Éter. Estado: ${estado}. Vetor: F=${Math.round(vetor.face)} V=${Math.round(vetor.voice)} M=${Math.round(vetor.move)} T=${Math.round(vetor.tilt)} P=${Math.round(vetor.pause)}. Contexto: "${contexto||'criar algo'}". 
+                Dá conselho poético 2-3 frases em português PT. Adapta ao estado.`}]}]
+            })
+          });
+        const d = await r.json();
+        return d.candidates[0].content.parts[0].text;
+      } catch(e) { return gerarConselhoLocal(vetor, estado, contexto); }
+    }
+    
+    function gerarConselhoLocal(vetor, estado, contexto) {
+      const conselhos = {
+        confuso: ["A névoa é uma ideia a querer nascer. O que já sabes?", "Fecha os olhos. A primeira imagem é o próximo passo."],
+        travado: ["O bloqueio é um convite à pausa. Olha pela janela.", "Faz algo horrível de propósito. A perfeição vem depois."],
+        reflexivo: ["Estás perto de algo profundo. Continua a escavar.", "A reflexão é o solo das grandes ideias."],
+        curioso: ["Segue essa pergunta não formulada.", "Vai mais fundo nessa direção."],
+        animado: ["Captura tudo agora, mesmo em palavras soltas!", "Não te limites — deixa a ideia voar."],
+        calmo: ["Na calmaria, as ideias visitam-nos. Fica recetivo.", "Momento perfeito para começar algo novo."]
+      };
+      const lista = conselhos[estado] || conselhos['calmo'];
+      let c = lista[Math.floor(Math.random()*lista.length)];
+      if (contexto?.length > 3) c = `Sobre "${contexto.substring(0,40)}...": ${c}`;
+      if (c === ultimoConselho) return gerarConselhoLocal(vetor, estado, contexto);
+      ultimoConselho = c;
+      return c;
+    }
+    
+    function mostrarOraculo(t) {
+      const b = document.getElementById('oraculoBox');
+      document.getElementById('oraculoTexto').textContent = t;
+      b.classList.add('visivel');
+      clearTimeout(window._ot);
+      window._ot = setTimeout(() => b.classList.remove('visivel'), 15000);
+    }
+    
+    // ============ ESTADO ============
+    async function atualizarEstado() {
+      const vetorAtual = {face:faceScore, voice:voiceScore, move:moveScore, tilt:headTiltScore, pause:pauseScore};
+      historicoVetores.push(vetorAtual);
+      if (historicoVetores.length > TAMANHO_HISTORICO) historicoVetores.shift();
+      
+      if (detectarPadraoEureka() && estadoAtual !== 'pre_eureka') {
+        const ant = estadoAtual;
+        estadoAtual = 'pre_eureka';
+        mostrarEstado('⚡ Ideia a vir!', 'O Éter sente a faísca...', 'animado');
+        iniciarSomBinaural('animado');
+        const c = await gerarConselho(vetorAtual, 'animado', document.getElementById('contexto').value);
+        mostrarOraculo(c);
+        adicionarEventoDiario({estado:'Eureka!', emoji:'⚡'});
+        setTimeout(()=>{estadoAtual=ant;},3000);
+        eurekaCooldown=true;
+        setTimeout(()=>{eurekaCooldown=false;},5000);
+        return;
+      }
+      
+      let ns="calmo", t="🌿 Calmo", d="O Éter aguarda...", em="🌿";
+      if(pauseScore>60&&moveScore<10){ns="travado";t="😶 Travado";d="Silêncio... O Éter vai falar.";em="😶"}
+      else if(faceScore>60&&voiceScore<20&&headTiltScore<30){ns="confuso";t="😕 Confuso";d="Hesitação detetada.";em="😕"}
+      else if(headTiltScore>50&&headTiltDirection==="direita"&&faceScore<50){ns="reflexivo";t="🤔 Reflexivo";d="A processar algo profundo.";em="🤔"}
+      else if(headTiltScore>50&&faceScore>40){ns="curioso";t="🧐 Curioso";d="Curiosidade acesa.";em="🧐"}
+      else if(faceScore>70&&voiceScore>50){ns="animado";t="🎉 Animado!";d="Energia a fluir!";em="🎉"}
+      
+      if(ns!==estadoAtual&&estadoAtual!=='pre_eureka'){
+        estadoAtual=ns;
+        mostrarEstado(t,d,ns);
+        iniciarSomBinaural(ns);
+        adicionarEventoDiario({estado:ns,emoji:em});
+        if((ns==='confuso'||ns==='travado')&&conselhoCooldown<=0){
+          mostrarOraculo(await gerarConselho(vetorAtual,ns,document.getElementById('contexto').value));
+          conselhoCooldown=8;
+        }
+      }
+      if(conselhoCooldown>0)conselhoCooldown--;
+      
+      document.getElementById('debug').textContent = 
+        `Vetor: [F:${Math.round(faceScore)} V:${Math.round(voiceScore)} M:${Math.round(moveScore)} T:${Math.round(headTiltScore)} P:${Math.round(pauseScore)}] | ${estadoAtual} | Ev:${diarioEventos.length}`;
+    }
+    
+    function mostrarEstado(t,d,c){
+      const b=document.getElementById('estadoBox');
+      b.className='card estado '+c;
+      document.getElementById('estadoTexto').textContent=t;
+      document.getElementById('estadoDesc').textContent=d;
+    }
+    
+    function detectarPadraoEureka(){
+      if(historicoVetores.length<8||eurekaCooldown)return false;
+      const u=historicoVetores.slice(-8);
+      return u[7].face>u[0].face*1.4&&u[7].voice<u[0].voice*0.6&&Math.abs(u[7].tilt-u[0].tilt)<25;
+    }
+    
+    // ============ LOOP ============
+    async function loop(){
+      const det=await faceapi.detectSingleFace(video,new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceExpressions();
+      if(det&&det.landmarks){
+        const exp=det.expressions;
+        faceScore=(exp.surprised*0.5+exp.fearful*0.3+exp.happy*0.4)*100;
+        const l=det.landmarks.getLeftEye(),r=det.landmarks.getRightEye();
+        if(l&&r){
+          const lC={x:(l[0].x+l[3].x)/2,y:(l[0].y+l[3].y)/2},rC={x:(r[0].x+r[3].x)/2,y:(r[0].y+r[3].y)/2};
+          const ang=Math.atan2(rC.y-lC.y,rC.x-lC.x)*(180/Math.PI);
+          headTiltScore=Math.min(Math.abs(ang)*5,100);
+          headTiltDirection=ang>5?"direita":ang<-5?"esquerda":"neutro";
+          const dist=Math.abs(rC.x-lC.x);
+          if(lastEyePositions)moveScore=Math.min(Math.abs(dist/lastEyePositions.distance-1)*1000,100);
+          lastEyePositions={distance:dist};
+        }
+      }else{faceScore*=0.9;headTiltScore*=0.8;}
+      
+      if(analyser){
+        const d=new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(d);
+        voiceScore=Math.min(d.reduce((a,b)=>a+b)/d.length*2,100);
+      }
+      
+      await atualizarEstado();
+      ['faceScore','voiceScore','moveScore','tiltScore','pauseScore'].forEach((id,i)=>{
+        document.getElementById(id).textContent=Math.round([faceScore,voiceScore,moveScore,headTiltScore,pauseScore][i]);
+      });
+      requestAnimationFrame(loop);
+    }
+    
+    // ============ VOZ ============
+    function iniciarReconhecimentoVoz(){
+      if(!('webkitSpeechRecognition'in window)&&!('SpeechRecognition'in window))return;
+      const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+      recognition=new SR();
+      recognition.continuous=true;
+      recognition.interimResults=true;
+      recognition.lang='pt-PT';
+      recognition.onresult=()=>{lastSpeechTime=Date.now();pauseScore=0;};
+      recognition.onend=()=>{if(estadoAtual!=='calmo')try{recognition.start();}catch(e){}};
+      recognition.start();
+      setInterval(()=>{const s=(Date.now()-lastSpeechTime)/1000;pauseScore=s>3?Math.min(s*20,100):Math.max(0,pauseScore-5);},1000);
+    }
+    
+    // ============ INICIAR ============
+    async function iniciar(){
+      const btn=document.getElementById('btnIniciar');
+      btn.textContent='✨ A conectar...';
+      btn.disabled=true;
+      
+      try{
+        // Firebase primeiro
+        await esperarFirebase();
+        await iniciarAutenticacao();
+        
+        video=document.getElementById('video');
+        video.srcObject=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480,facingMode:'user'}});
+        
+        await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+        await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+        await faceapi.nets.faceExpressionNet.loadFromUri('https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights');
+        
+        const aS=await navigator.mediaDevices.getUserMedia({audio:true});
+        audioContext=new AudioContext();
+        analyser=audioContext.createAnalyser();
+        audioContext.createMediaStreamSource(aS).connect(analyser);
+        analyser.fftSize=256;
+        
+        window.addEventListener('devicemotion',(e)=>{
+          const a=e.accelerationIncludingGravity;
+          if(!a)return;
+          const d=Math.abs(a.x-lastPos.x)+Math.abs(a.y-lastPos.y)+Math.abs(a.z-lastPos.z);
+          moveScore=d>2?Math.min(moveScore+d*5,100):moveScore*0.9;
+          lastPos={x:a.x,y:a.y,z:a.z};
+        });
+        
+        iniciarReconhecimentoVoz();
+        iniciarCanvasAlma();
+        document.getElementById('btnAudio').disabled=false;
+        
+        document.getElementById('estadoDesc').textContent='✅ Éter vivo! Firebase conectado.';
+        btn.textContent='✨ Éter Ativo';
+        loop();
+        
+      }catch(e){
+        console.error(e);
+        document.getElementById('estadoDesc').textContent='Erro: Usa HTTPS e permite câmera/mic';
+        btn.disabled=false;
+        btn.textContent='🔮 Tentar de novo';
+      }
+    }
+    
+    console.log('🌌 Éter + Firebase carregado.');
+  </script>
+</body>
+</html>
