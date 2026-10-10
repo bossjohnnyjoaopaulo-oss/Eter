@@ -1,1 +1,1358 @@
-Hackear 
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PrivacyLens v2.2 — Diagnóstico do Dispositivo</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Courier New', monospace; }
+    html, body { min-height: 100%; background: #000; color: #ff3333; overflow-x: hidden; }
+    body {
+      background: radial-gradient(ellipse at center, #1a0000 0%, #000 70%);
+      min-height: 100vh; padding: 20px 10px 60px; position: relative;
+    }
+    body::before {
+      content: ""; position: fixed; inset: 0;
+      background: repeating-linear-gradient(to bottom, rgba(255,0,0,0.04) 0px, rgba(255,0,0,0.04) 1px, transparent 1px, transparent 3px);
+      pointer-events: none; z-index: 9999;
+    }
+    body::after {
+      content: ""; position: fixed; inset: 0;
+      background: radial-gradient(ellipse at center, transparent 50%, rgba(255,0,0,0.15) 100%);
+      pointer-events: none; z-index: 9998;
+    }
+    .container { max-width: 900px; margin: 0 auto; position: relative; z-index: 10; }
+
+    header {
+      text-align: center; margin-bottom: 25px; padding: 15px;
+      border: 2px solid #ff0000; border-radius: 12px; background: rgba(10,0,0,0.7);
+      box-shadow: 0 0 25px rgba(255,0,0,0.5);
+    }
+    h1 {
+      font-size: 1.6rem; letter-spacing: 3px; color: #ff0000;
+      text-shadow: 0 0 12px #ff0000, 0 0 25px #ff0000; margin-bottom: 6px;
+    }
+    .subtitulo { font-size: 0.8rem; color: #ff7777; letter-spacing: 2px; text-shadow: 0 0 6px #ff0000; }
+    .versao { display: inline-block; margin-top: 6px; font-size: 0.65rem; color: #ff5555; border: 1px solid #ff5555; padding: 2px 8px; border-radius: 10px; }
+
+    .score-painel {
+      display: flex; align-items: center; gap: 20px; padding: 20px;
+      border: 2px solid #ff0000; border-radius: 12px; background: rgba(10,0,0,0.7);
+      margin-bottom: 20px; box-shadow: 0 0 20px rgba(255,0,0,0.4);
+      flex-wrap: wrap; justify-content: center;
+    }
+    .score-circulo {
+      width: 130px; height: 130px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 2.5rem; font-weight: bold; position: relative; transition: all 0.6s ease;
+    }
+    .score-circulo::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: #0a0000; z-index: 1; }
+    .score-circulo span { position: relative; z-index: 2; text-shadow: 0 0 15px currentColor; font-size: 1.1rem; text-align: center; padding: 0 8px; }
+    .score-info { flex: 1; min-width: 200px; text-align: center; }
+    .score-info h2 { font-size: 1.2rem; margin-bottom: 8px; letter-spacing: 2px; text-shadow: 0 0 10px currentColor; }
+    .score-info p { font-size: 0.85rem; line-height: 1.5; color: #ff9999; }
+
+    .botoes { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+    button {
+      flex: 1; min-width: 150px; padding: 14px;
+      border: 2px solid #ff0000;
+      background: linear-gradient(180deg, #660000, #330000);
+      color: #ff0000; font-size: 1rem; font-weight: bold; letter-spacing: 2px;
+      cursor: pointer; border-radius: 8px; transition: all 0.2s;
+      box-shadow: 0 0 15px rgba(255,0,0,0.5); text-shadow: 0 0 6px #ff0000;
+      font-family: 'Courier New', monospace;
+    }
+    button:hover { background: linear-gradient(180deg, #990000, #550000); color: #ffffff; box-shadow: 0 0 25px #ff0000; }
+    button:active { transform: scale(0.97); }
+    button:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; margin-bottom: 20px; }
+    .cartao {
+      border: 1px solid #ff0000; border-radius: 10px; padding: 14px;
+      background: rgba(10,0,0,0.7); box-shadow: 0 0 12px rgba(255,0,0,0.2);
+      transition: all 0.3s; animation: aparecer 0.4s ease-out;
+    }
+    .cartao:hover { box-shadow: 0 0 20px rgba(255,0,0,0.5); transform: translateY(-2px); }
+    @keyframes aparecer { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    .cartao h3 {
+      font-size: 0.85rem; letter-spacing: 2px; margin-bottom: 10px;
+      display: flex; align-items: center; justify-content: space-between;
+      color: #ff4444; text-shadow: 0 0 6px #ff0000;
+    }
+    .cartao h3 .icone { font-size: 1.1rem; }
+
+    .item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted rgba(255,0,0,0.2); font-size: 0.78rem; gap: 10px; }
+    .item:last-child { border-bottom: none; }
+    .item .rotulo { color: #ff8888; flex-shrink: 0; }
+    .item .valor { color: #fff; text-align: right; font-weight: bold; word-break: break-word; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+
+    .detalhes-verificacao {
+      margin-top: 6px; padding: 8px 10px;
+      background: rgba(255,0,0,0.05);
+      border-left: 2px solid rgba(255,0,0,0.4);
+      border-radius: 4px;
+      font-size: 0.68rem; line-height: 1.5;
+      color: #ff9999;
+    }
+    .detalhes-verificacao .linha { margin-bottom: 4px; }
+    .detalhes-verificacao .linha:last-child { margin-bottom: 0; }
+    .detalhes-verificacao .rotulo-detalhe { color: #ff6666; font-weight: bold; }
+
+    .verificacao-bloco {
+      padding: 8px 0;
+      border-bottom: 1px dotted rgba(255,0,0,0.2);
+    }
+    .verificacao-bloco:last-child { border-bottom: none; }
+    .verificacao-cabecalho {
+      display: flex; justify-content: space-between;
+      font-size: 0.78rem; gap: 10px; margin-bottom: 4px;
+    }
+
+    .ok { color: #00ff88 !important; text-shadow: 0 0 8px #00ff88 !important; }
+    .warn { color: #ffcc00 !important; text-shadow: 0 0 8px #ffcc00 !important; }
+    .err { color: #ff3333 !important; text-shadow: 0 0 8px #ff3333 !important; }
+    .info { color: #00ffff !important; text-shadow: 0 0 8px #00ffff !important; }
+    .nao-verif { color: #aaa !important; text-shadow: 0 0 6px #666 !important; }
+
+    #log {
+      border: 1px solid #ff0000; border-radius: 10px; padding: 12px;
+      background: rgba(5,0,0,0.85); font-size: 0.78rem; line-height: 1.5;
+      max-height: 240px; overflow-y: auto;
+      box-shadow: inset 0 0 20px rgba(255,0,0,0.2);
+    }
+    #log::-webkit-scrollbar { width: 6px; }
+    #log::-webkit-scrollbar-track { background: #000; }
+    #log::-webkit-scrollbar-thumb { background: #ff0000; border-radius: 6px; }
+    .log-linha { animation: aparecer 0.3s ease-out; }
+    .log-linha::before { content: "> "; color: #ff0000; }
+
+    .secao-titulo {
+      font-size: 0.75rem; letter-spacing: 3px; color: #ff5555;
+      margin: 20px 0 10px; padding-bottom: 4px;
+      border-bottom: 1px solid rgba(255,0,0,0.4);
+      text-shadow: 0 0 6px #ff0000;
+    }
+
+    .loader {
+      display: inline-block; width: 12px; height: 12px;
+      border: 2px solid #ff0000; border-top-color: transparent;
+      border-radius: 50%; animation: girar 0.8s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes girar { to { transform: rotate(360deg); } }
+
+    .progresso-scan {
+      height: 4px; background: rgba(255,0,0,0.15); border-radius: 2px;
+      overflow: hidden; margin-bottom: 15px; display: none;
+    }
+    .progresso-scan.ativo { display: block; }
+    .progresso-scan .fill {
+      height: 100%; background: #ff0000; box-shadow: 0 0 10px #ff0000;
+      width: 0%; transition: width 0.3s;
+    }
+
+    .debug-painel {
+      margin-top: 20px; border: 1px dashed #00ffff; border-radius: 10px;
+      padding: 12px; background: rgba(0,20,20,0.4);
+    }
+    .debug-painel h3 {
+      color: #00ffff; font-size: 0.75rem; letter-spacing: 2px;
+      margin-bottom: 10px; text-shadow: 0 0 8px #00ffff;
+    }
+    .debug-painel pre {
+      color: #88ffff; font-size: 0.7rem; line-height: 1.4;
+      max-height: 320px; overflow: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    .badge-estado {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: bold; letter-spacing: 1px; margin-right: 6px;
+    }
+    .badge-sem_problemas { background: #004422; color: #00ff88; border: 1px solid #00ff88; }
+    .badge-atencao       { background: #443300; color: #ffcc00; border: 1px solid #ffcc00; }
+    .badge-varios_pontos { background: #442200; color: #ff8800; border: 1px solid #ff8800; }
+    .badge-incompleto    { background: #333; color: #cccccc; border: 1px solid #888; }
+
+    /* Painel de auto-testes */
+    .autotestes {
+      margin-top: 20px; border: 1px dashed #00ff88; border-radius: 10px;
+      padding: 12px; background: rgba(0,20,0,0.4);
+      font-size: 0.7rem; color: #88ff88;
+    }
+    .autotestes h3 {
+      color: #00ff88; font-size: 0.75rem; letter-spacing: 2px;
+      margin-bottom: 8px; text-shadow: 0 0 8px #00ff88;
+    }
+    .autotestes .linha-teste { padding: 2px 0; }
+    .autotestes .passou { color: #00ff88; }
+    .autotestes .falhou { color: #ff5555; font-weight: bold; }
+
+    footer {
+      text-align: center; margin-top: 30px; font-size: 0.7rem;
+      color: #ff5555; letter-spacing: 1px; padding: 15px;
+      border-top: 1px solid rgba(255,0,0,0.3);
+    }
+    footer strong { color: #ff0000; text-shadow: 0 0 6px #ff0000; }
+
+    @media (max-width: 500px) {
+      h1 { font-size: 1.2rem; letter-spacing: 2px; }
+      .score-circulo { width: 100px; height: 100px; }
+      .score-circulo span { font-size: 0.9rem; }
+      .score-info h2 { font-size: 1.05rem; }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <header>
+      <h1>🔍 PRIVACYLENS</h1>
+      <div class="subtitulo">DIAGNÓSTICO REAL DO DISPOSITIVO</div>
+      <div class="versao">v2.2 — 3 categorias migradas · auto-testes</div>
+    </header>
+
+    <div class="score-painel">
+      <div class="score-circulo" id="scoreCirculo" style="color: #666;">
+        <span id="scoreValor">--</span>
+      </div>
+      <div class="score-info">
+        <h2 id="scoreTitulo" style="color: #666;">A aguardar análise...</h2>
+        <p id="scoreDescricao">Clica em "INICIAR ANÁLISE" para correr o motor v2.</p>
+      </div>
+    </div>
+
+    <div class="botoes">
+      <button id="btnAnalisar" onclick="correrAnalise()">▶ INICIAR ANÁLISE</button>
+      <button id="btnRelatorio" onclick="descarregarRelatorio()" disabled>⬇ RELATÓRIO JSON</button>
+      <button onclick="location.reload()">↻ REINICIAR</button>
+    </div>
+
+    <div class="progresso-scan" id="progressoScan">
+      <div class="fill" id="progressoFill"></div>
+    </div>
+
+    <div class="secao-titulo">▸ LOG DE VERIFICAÇÕES</div>
+    <div id="log"></div>
+
+    <div class="secao-titulo">▸ RESULTADOS POR CATEGORIA</div>
+    <div class="grid" id="grid"></div>
+
+    <div class="secao-titulo">▸ RELATÓRIO v2 (DEBUG)</div>
+    <div class="debug-painel">
+      <h3>Estado global + estrutura completa</h3>
+      <div id="debugEstado" style="margin-bottom:10px; color:#fff;">
+        <span class="badge-estado badge-incompleto" id="debugBadge">— aguarda análise —</span>
+      </div>
+      <pre id="debugPre">Sem dados ainda. Clica em INICIAR ANÁLISE.</pre>
+    </div>
+
+    <div class="autotestes">
+      <h3>🧪 Auto-testes do motor</h3>
+      <div id="autotestesResultado">A correr...</div>
+    </div>
+
+    <footer>
+      <strong>PrivacyLens v2.2</strong> — Nenhum dado sai do teu dispositivo.<br>
+      Todas as verificações correm localmente no browser.
+    </footer>
+
+  </div>
+
+  <script>
+    // ============================================================
+    //  PrivacyLens v2.2
+    //  - Categorias migradas: sistema, ligacao, hardware
+    //  - Categorias no formato antigo: privacidade, fingerprint,
+    //    permissoes, armazenamento (a migrar)
+    //  - Handler global de erros visível no log
+    //  - Auto-testes do motor (Fase C antecipada)
+    // ============================================================
+
+    // Handler global de erros
+    window.addEventListener('error', (e) => {
+      const logEl = document.getElementById('log');
+      if (logEl) {
+        const linha = document.createElement('div');
+        linha.className = 'log-linha err';
+        linha.textContent = `!!! ERRO: ${e.message} (${e.filename || ''}:${e.lineno || '?'})`;
+        logEl.appendChild(linha);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      console.error('[PrivacyLens] erro global:', e);
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+      const logEl = document.getElementById('log');
+      if (logEl) {
+        const linha = document.createElement('div');
+        linha.className = 'log-linha err';
+        linha.textContent = `!!! PROMISE REJEITADA: ${e.reason && e.reason.message || e.reason}`;
+        logEl.appendChild(linha);
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+      console.error('[PrivacyLens] promise rejeitada:', e.reason);
+    });
+
+    // ------------------------------------------------------------
+    //  1. ESTADOS E CATEGORIAS
+    // ------------------------------------------------------------
+    const ESTADO = Object.freeze({
+      OK:             'ok',
+      INFO:           'info',
+      ATENCAO:        'atencao',
+      CRITICO:        'critico',
+      NAO_VERIFICADO: 'nao_verificado'
+    });
+
+    const CATEGORIAS = Object.freeze({
+      sistema:       { nome: 'Sistema',         icone: '💻', peso: 'baixo' },
+      ligacao:       { nome: 'Ligação',         icone: '🌐', peso: 'alto'  },
+      hardware:      { nome: 'Características', icone: '⚙',  peso: 'baixo' },
+      privacidade:   { nome: 'Privacidade',     icone: '🔒', peso: 'alto'  },
+      fingerprint:   { nome: 'Fingerprinting',  icone: '🎯', peso: 'medio' },
+      permissoes:    { nome: 'Permissões',      icone: '🔑', peso: 'alto'  },
+      armazenamento: { nome: 'Armazenamento',   icone: '💾', peso: 'baixo' }
+    });
+
+    // ------------------------------------------------------------
+    //  2. FÁBRICA
+    // ------------------------------------------------------------
+    function criarVerificacao({
+      id, categoria, titulo, estado, valor,
+      o_que_testado, significado, limitacao,
+      peso = 'baixo', evidencia = null, recomendacao = null
+    }) {
+      if (!id || !categoria || !titulo)
+        throw new Error('Verificação inválida: id, categoria e titulo são obrigatórios.');
+      if (!CATEGORIAS[categoria])
+        throw new Error(`Categoria desconhecida: ${categoria}`);
+      if (!Object.values(ESTADO).includes(estado))
+        throw new Error(`Estado desconhecido: ${estado}`);
+
+      return {
+        id, categoria, titulo, estado,
+        valor: String(valor ?? '—'),
+        o_que_testado: o_que_testado || '—',
+        significado:   significado   || '—',
+        limitacao:     limitacao     || '—',
+        peso, evidencia, recomendacao
+      };
+    }
+
+    // ------------------------------------------------------------
+    //  3. AGREGAÇÃO
+    // ------------------------------------------------------------
+    function pontosDaVerificacao(v) {
+      switch (v.estado) {
+        case ESTADO.OK:      return { n: 1, d: 1 };
+        case ESTADO.ATENCAO: return { n: 0, d: 1 };
+        case ESTADO.CRITICO: return { n: 0, d: 1 };
+        default:             return { n: 0, d: 0 };
+      }
+    }
+
+    function agregarCategoria(categoriaId, verificacoes) {
+      const meta = CATEGORIAS[categoriaId];
+      let n = 0, d = 0;
+      const contagem = { total: verificacoes.length, ok: 0, info: 0, atencao: 0, critico: 0, nao_verificado: 0 };
+
+      verificacoes.forEach(v => {
+        contagem[v.estado] = (contagem[v.estado] || 0) + 1;
+        const p = pontosDaVerificacao(v);
+        n += p.n; d += p.d;
+      });
+
+      const temPontuaveis = d > 0;
+      const score = temPontuaveis ? Math.round((n / d) * 100) : null;
+
+      let estado;
+      if (contagem.critico > 0)                     estado = ESTADO.CRITICO;
+      else if (contagem.atencao > 0)                estado = ESTADO.ATENCAO;
+      else if (!temPontuaveis && contagem.info > 0) estado = ESTADO.INFO;
+      else if (contagem.ok > 0)                     estado = ESTADO.OK;
+      else if (contagem.nao_verificado > 0)         estado = ESTADO.NAO_VERIFICADO;
+      else                                          estado = ESTADO.INFO;
+
+      return { categoria: categoriaId, meta, score, estado, ...contagem, verificacoes };
+    }
+
+    function calcularEstadoGlobal(categorias) {
+      let total = 0, naoVerificados = 0, totalCriticos = 0, totalAtencao = 0;
+
+      categorias.forEach(c => {
+        total += c.total;
+        naoVerificados += c.nao_verificado;
+        totalCriticos += c.critico;
+        totalAtencao += c.atencao;
+      });
+
+      const cobertura = total === 0 ? 0 : Math.round(((total - naoVerificados) / total) * 100);
+
+      let estado, label;
+      if (cobertura < 70) {
+        estado = 'incompleto';
+        label  = 'Análise incompleta — poucos testes puderam ser concluídos';
+      } else if (totalCriticos > 0) {
+        estado = 'varios_pontos';
+        label  = 'Vários pontos a rever';
+      } else if (totalAtencao >= 4) {
+        estado = 'varios_pontos';
+        label  = 'Vários pontos a rever';
+      } else if (totalAtencao > 0) {
+        estado = 'atencao';
+        label  = 'Atenção — alguns pontos merecem revisão';
+      } else {
+        estado = 'sem_problemas';
+        label  = 'Sem problemas identificados nos testes disponíveis';
+      }
+
+      return { estado, label, cobertura, totalCriticos, totalAtencao };
+    }
+
+    function construirRelatorio({ inicio, fim, verificacoes, dados_brutos }) {
+      const porCategoria = {};
+      verificacoes.forEach(v => {
+        if (!porCategoria[v.categoria]) porCategoria[v.categoria] = [];
+        porCategoria[v.categoria].push(v);
+      });
+
+      const categorias = Object.keys(porCategoria)
+        .map(catId => agregarCategoria(catId, porCategoria[catId]));
+
+      const estadoGlobal = calcularEstadoGlobal(categorias);
+
+      return {
+        ferramenta: 'PrivacyLens',
+        versao: '2.2',
+        inicio, fim,
+        estado_global: estadoGlobal.estado,
+        estado_global_label: estadoGlobal.label,
+        cobertura: estadoGlobal.cobertura,
+        categorias,
+        dados_brutos,
+        limitacoes_gerais: [
+          'Este relatório reflete apenas o que o navegador expõe através de APIs padrão.',
+          'Não inspeciona processos, aplicações instaladas ou ficheiros do sistema operativo.',
+          'Um resultado OK não significa que o dispositivo esteja livre de ameaças.',
+          'Um resultado ATENÇÃO não significa que exista um ataque em curso.',
+          'Valores de rede reportados pelo navegador são estimativas em cache, não medições.',
+          'Nenhum dado é enviado para fora do dispositivo.'
+        ]
+      };
+    }
+
+    // ------------------------------------------------------------
+    //  4. HELPERS
+    // ------------------------------------------------------------
+    function ehAmbienteLocal() {
+      const host = location.hostname || '';
+      const proto = location.protocol;
+      if (proto === 'file:') return true;
+      if (host === 'localhost') return true;
+      if (host === '127.0.0.1') return true;
+      if (host === '0.0.0.0') return true;
+      if (host.startsWith('192.168.')) return true;
+      if (host.startsWith('10.')) return true;
+      if (host.endsWith('.local')) return true;
+      return false;
+    }
+
+    // ------------------------------------------------------------
+    //  5. VERIFICAÇÃO — SISTEMA
+    // ------------------------------------------------------------
+    function verificarSistema() {
+      const verificacoes = [];
+
+      verificacoes.push(criarVerificacao({
+        id: 'sistema_idioma',
+        categoria: 'sistema',
+        titulo: 'Idioma do browser',
+        estado: ESTADO.INFO,
+        valor: navigator.language || 'desconhecido',
+        o_que_testado: 'Lê o idioma preferido configurado no navegador.',
+        significado: 'Sites podem adaptar conteúdo com base nesta preferência. É uma configuração normal.',
+        limitacao: 'Não identifica localização geográfica nem nacionalidade.',
+        peso: 'baixo',
+        evidencia: { language: navigator.language, languages: navigator.languages }
+      }));
+
+      let fuso = 'não detetado';
+      try { fuso = Intl.DateTimeFormat().resolvedOptions().timeZone || 'desconhecido'; } catch (e) {}
+
+      verificacoes.push(criarVerificacao({
+        id: 'sistema_fuso',
+        categoria: 'sistema',
+        titulo: 'Fuso horário',
+        estado: ESTADO.INFO,
+        valor: fuso,
+        o_que_testado: 'Consulta o fuso horário configurado no sistema.',
+        significado: 'É usado por sites para mostrar horas corretas. Não constitui risco por si só.',
+        limitacao: 'O fuso horário pode estar incorreto no sistema e não refletir onde estás.',
+        peso: 'baixo',
+        evidencia: { timeZone: fuso, offsetMinutos: new Date().getTimezoneOffset() }
+      }));
+
+      verificacoes.push(criarVerificacao({
+        id: 'sistema_resolucao',
+        categoria: 'sistema',
+        titulo: 'Resolução do ecrã',
+        estado: ESTADO.INFO,
+        valor: `${screen.width}×${screen.height} @ ${window.devicePixelRatio.toFixed(2)}x`,
+        o_que_testado: 'Obtém as dimensões do ecrã em píxeis CSS e a densidade.',
+        significado: 'Informação comum, usada para renderizar corretamente. Contribui para fingerprinting.',
+        limitacao: 'Não revela o modelo do dispositivo nem a marca.',
+        peso: 'baixo',
+        evidencia: {
+          width: screen.width, height: screen.height,
+          availWidth: screen.availWidth, availHeight: screen.availHeight,
+          pixelRatio: window.devicePixelRatio, colorDepth: screen.colorDepth
+        }
+      }));
+
+      const dnt = navigator.doNotTrack;
+      const dntAtivo = dnt === '1' || dnt === 'yes' || dnt === 1;
+      const dntDisponivel = dnt !== undefined && dnt !== null;
+
+      if (!dntDisponivel) {
+        verificacoes.push(criarVerificacao({
+          id: 'sistema_dnt',
+          categoria: 'sistema',
+          titulo: 'Do Not Track',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'Não disponível',
+          o_que_testado: 'Verifica se o browser comunica a preferência DNT aos sites.',
+          significado: 'Este browser não expõe a API DNT.',
+          limitacao: 'A ausência não é um problema — apenas não conseguimos verificar.',
+          peso: 'baixo'
+        }));
+      } else if (dntAtivo) {
+        verificacoes.push(criarVerificacao({
+          id: 'sistema_dnt',
+          categoria: 'sistema',
+          titulo: 'Do Not Track',
+          estado: ESTADO.OK,
+          valor: 'Ativado',
+          o_que_testado: 'Verifica se o browser envia o cabeçalho DNT aos sites.',
+          significado: 'O browser comunica que preferes não ser rastreado.',
+          limitacao: 'Muitos sites ignoram este sinal de qualquer forma.',
+          peso: 'baixo',
+          evidencia: { dnt }
+        }));
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'sistema_dnt',
+          categoria: 'sistema',
+          titulo: 'Do Not Track',
+          estado: ESTADO.ATENCAO,
+          valor: 'Desativado',
+          o_que_testado: 'Verifica se o browser envia o cabeçalho DNT aos sites.',
+          significado: 'O browser não comunica a tua preferência sobre rastreamento.',
+          limitacao: 'Ativar o DNT não garante que sites deixem de rastrear — muitos ignoram-no.',
+          peso: 'baixo',
+          recomendacao: 'Podes ativar o DNT nas configurações de privacidade do browser.'
+        }));
+      }
+
+      verificacoes.push(criarVerificacao({
+        id: 'sistema_online',
+        categoria: 'sistema',
+        titulo: 'Estado da ligação',
+        estado: ESTADO.INFO,
+        valor: navigator.onLine ? 'Online' : 'Offline',
+        o_que_testado: 'Verifica se o browser considera que há ligação à internet.',
+        significado: 'Indica apenas se o sistema pensa que está ligado. Não mede qualidade nem segurança.',
+        limitacao: 'Um sistema pode estar "online" para uma rede local mas sem acesso à internet real.',
+        peso: 'baixo',
+        evidencia: { onLine: navigator.onLine }
+      }));
+
+      return verificacoes;
+    }
+
+    // ------------------------------------------------------------
+    //  6. VERIFICAÇÃO — LIGAÇÃO
+    // ------------------------------------------------------------
+    async function verificarLigacao() {
+      const verificacoes = [];
+      const protocolo = location.protocol;
+      const host = location.hostname || 'local';
+      const local = ehAmbienteLocal();
+
+      if (protocolo === 'https:') {
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_https',
+          categoria: 'ligacao',
+          titulo: 'HTTPS ativo',
+          estado: ESTADO.INFO,
+          valor: 'Sim',
+          o_que_testado: 'Verifica se a página atual está a ser servida através de HTTPS.',
+          significado: 'A comunicação entre o navegador e este site está encriptada.',
+          limitacao: 'HTTPS protege só a ligação. Não garante que o site seja legítimo ou seguro.',
+          peso: 'alto',
+          evidencia: { protocolo, host }
+        }));
+      } else if (local) {
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_https',
+          categoria: 'ligacao',
+          titulo: 'HTTPS ativo',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'Não aplicável',
+          o_que_testado: 'Verifica se a página está em HTTPS.',
+          significado: 'Estás a testar num ambiente local (ficheiro ou servidor de desenvolvimento). HTTPS não se aplica aqui.',
+          limitacao: 'Esta verificação só faz sentido em sites públicos com domínio real.',
+          peso: 'alto',
+          evidencia: { protocolo, host, ambienteLocal: true }
+        }));
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_https',
+          categoria: 'ligacao',
+          titulo: 'HTTPS ativo',
+          estado: ESTADO.CRITICO,
+          valor: 'Não',
+          o_que_testado: 'Verifica se a página está em HTTPS.',
+          significado: 'A comunicação está em claro. Qualquer pessoa na mesma rede pode ler ou alterar os dados.',
+          limitacao: 'HTTPS protege só a ligação. A ausência dele aqui é um sinal concreto de risco nesta sessão.',
+          peso: 'alto',
+          evidencia: { protocolo, host },
+          recomendacao: 'Não introduzas dados sensíveis enquanto não estiver em HTTPS.'
+        }));
+      }
+
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+
+      if (!conn) {
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_network_api',
+          categoria: 'ligacao',
+          titulo: 'Características da rede',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'API não disponível',
+          o_que_testado: 'Consulta a API Network Information (tipo de rede, velocidade, RTT).',
+          significado: 'Este navegador não expõe a API, pelo que não foi possível avaliar estes aspetos.',
+          limitacao: 'A ausência não é um problema — só não conseguimos verificar.',
+          peso: 'baixo'
+        }));
+      } else {
+        const efetivo = conn.effectiveType || 'desconhecido';
+        const velocidade = typeof conn.downlink === 'number' ? conn.downlink : null;
+        const rtt = typeof conn.rtt === 'number' ? conn.rtt : null;
+        const poupanca = !!conn.saveData;
+
+        const provavelmenteDefault = velocidade === 10 && rtt === 0 && efetivo === '4g';
+
+        let valorTexto, aviso;
+        if (provavelmenteDefault) {
+          valorTexto = `${efetivo} · ${velocidade} Mbps · ${rtt} ms`;
+          aviso = '⚠ Estes são os valores por defeito do navegador. Não refletem a tua rede real.';
+        } else if (velocidade !== null && rtt !== null) {
+          valorTexto = `${efetivo} · ${velocidade} Mbps · ${rtt} ms`;
+          aviso = '⚠ Valores estimados pelo navegador. Não são medições em tempo real.';
+        } else {
+          valorTexto = efetivo;
+          aviso = '⚠ Informação parcial. O navegador só devolveu o tipo de rede.';
+        }
+
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_caracteristicas',
+          categoria: 'ligacao',
+          titulo: 'Características da rede',
+          estado: ESTADO.INFO,
+          valor: valorTexto,
+          o_que_testado: 'Consulta o tipo de rede, velocidade e RTT estimados pelo navegador.',
+          significado: aviso + ' Estes valores são guardados em cache pelo Chrome e podem estar desatualizados durante horas.',
+          limitacao: 'Não é uma medição feita agora. É uma estimativa interna do navegador baseada em observações anteriores.',
+          peso: 'baixo',
+          evidencia: { effectiveType: efetivo, downlink: velocidade, rtt, saveData: poupanca, provavelmenteDefault }
+        }));
+
+        verificacoes.push(criarVerificacao({
+          id: 'ligacao_poupanca',
+          categoria: 'ligacao',
+          titulo: 'Modo de poupança de dados',
+          estado: ESTADO.INFO,
+          valor: poupanca ? 'Ativado' : 'Desativado',
+          o_que_testado: 'Verifica se o modo de poupança de dados do Chrome está ativo.',
+          significado: 'É uma preferência do utilizador no Chrome. Não constitui risco.',
+          limitacao: 'Só existe no Chrome Android. A poupança de bateria do sistema é diferente.',
+          peso: 'baixo',
+          evidencia: { saveData: poupanca }
+        }));
+      }
+
+      verificacoes.push(criarVerificacao({
+        id: 'ligacao_origem',
+        categoria: 'ligacao',
+        titulo: 'Origem da página',
+        estado: ESTADO.INFO,
+        valor: host,
+        o_que_testado: 'Identifica o domínio onde esta página está a ser executada.',
+        significado: 'Contextualiza todos os testes. Refere-se a esta origem.',
+        limitacao: 'Não valida se o domínio é legítimo.',
+        peso: 'baixo',
+        evidencia: { host, origem: location.origin, ambienteLocal: local }
+      }));
+
+      return verificacoes;
+    }
+
+    // ------------------------------------------------------------
+    //  7. VERIFICAÇÃO — HARDWARE
+    // ------------------------------------------------------------
+    async function verificarHardware() {
+      const verificacoes = [];
+
+      const cores = navigator.hardwareConcurrency;
+      if (typeof cores === 'number' && cores > 0) {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_cpu',
+          categoria: 'hardware',
+          titulo: 'Núcleos de CPU',
+          estado: ESTADO.INFO,
+          valor: cores + ' núcleos',
+          o_que_testado: 'Consulta o número de núcleos lógicos expostos pelo navegador.',
+          significado: 'É usado por aplicações para dimensionar processamento. Contribui para fingerprinting.',
+          limitacao: 'É o número de núcleos lógicos (com hyperthreading), não físicos.',
+          peso: 'baixo',
+          evidencia: { hardwareConcurrency: cores }
+        }));
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_cpu',
+          categoria: 'hardware',
+          titulo: 'Núcleos de CPU',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'Não exposto',
+          o_que_testado: 'Consulta o número de núcleos lógicos.',
+          significado: 'Este navegador não expõe a informação.',
+          limitacao: 'A ausência é neutra — apenas não conseguimos verificar.',
+          peso: 'baixo'
+        }));
+      }
+
+      const memoria = navigator.deviceMemory;
+      if (typeof memoria === 'number') {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_ram',
+          categoria: 'hardware',
+          titulo: 'Memória RAM',
+          estado: ESTADO.INFO,
+          valor: '≈ ' + memoria + ' GB',
+          o_que_testado: 'Consulta a memória RAM aproximada reportada pelo navegador.',
+          significado: 'É uma aproximação grosseira (arredondada para potência de 2). Contribui para fingerprinting.',
+          limitacao: 'O valor é arredondado e frequentemente impreciso. Não é a RAM exata do dispositivo.',
+          peso: 'baixo',
+          evidencia: { deviceMemory: memoria }
+        }));
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_ram',
+          categoria: 'hardware',
+          titulo: 'Memória RAM',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'Não exposta',
+          o_que_testado: 'Consulta a memória RAM reportada pelo navegador.',
+          significado: 'Este navegador não expõe a informação.',
+          limitacao: 'A ausência é neutra — apenas não conseguimos verificar.',
+          peso: 'baixo'
+        }));
+      }
+
+      let gpu = null, gpuVendor = null;
+      try {
+        const canvas = document.createElement('canvas');
+        const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+        if (gl) {
+          const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+          if (dbg) {
+            gpu = gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || null;
+            gpuVendor = gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || null;
+          } else {
+            gpu = gl.getParameter(gl.RENDERER) || null;
+            gpuVendor = gl.getParameter(gl.VENDOR) || null;
+          }
+        }
+      } catch (e) {}
+
+      if (gpu) {
+        const gpuCurta = gpu.length > 40 ? gpu.slice(0, 40) + '…' : gpu;
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_gpu',
+          categoria: 'hardware',
+          titulo: 'GPU',
+          estado: ESTADO.INFO,
+          valor: gpuCurta,
+          o_que_testado: 'Identifica o renderizador gráfico exposto via WebGL.',
+          significado: 'Informação detalhada do hardware gráfico. É um dos sinais mais fortes de fingerprinting.',
+          limitacao: 'Alguns navegadores bloqueiam ou mascaram esta informação por privacidade.',
+          peso: 'medio',
+          evidencia: { gpu, vendor: gpuVendor }
+        }));
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_gpu',
+          categoria: 'hardware',
+          titulo: 'GPU',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'Não exposta',
+          o_que_testado: 'Identifica o renderizador gráfico via WebGL.',
+          significado: 'Este navegador não expõe a informação ou bloqueia-a por privacidade.',
+          limitacao: 'Bloquear esta informação é positivo para a privacidade.',
+          peso: 'medio'
+        }));
+      }
+
+      if (typeof navigator.getBattery === 'function') {
+        try {
+          const bat = await navigator.getBattery();
+          const nivel = Math.round(bat.level * 100);
+          const carregando = !!bat.charging;
+          verificacoes.push(criarVerificacao({
+            id: 'hardware_bateria',
+            categoria: 'hardware',
+            titulo: 'Bateria',
+            estado: ESTADO.INFO,
+            valor: `${nivel}%${carregando ? ' (a carregar)' : ''}`,
+            o_que_testado: 'Consulta o nível e o estado de carga da bateria.',
+            significado: 'Informação precisa sobre a bateria. Historicamente usada para rastreamento entre separadores.',
+            limitacao: 'Firefox e Safari removeram esta API por privacidade. Só existe no Chrome/Edge.',
+            peso: 'medio',
+            evidencia: { nivel, carregando }
+          }));
+        } catch (e) {
+          verificacoes.push(criarVerificacao({
+            id: 'hardware_bateria',
+            categoria: 'hardware',
+            titulo: 'Bateria',
+            estado: ESTADO.NAO_VERIFICADO,
+            valor: 'Falhou a leitura',
+            o_que_testado: 'Consulta o nível e o estado de carga da bateria.',
+            significado: 'A API existe mas falhou na leitura.',
+            limitacao: 'Pode ser por permissão ou por limitação do sistema.',
+            peso: 'medio'
+          }));
+        }
+      } else {
+        verificacoes.push(criarVerificacao({
+          id: 'hardware_bateria',
+          categoria: 'hardware',
+          titulo: 'Bateria',
+          estado: ESTADO.NAO_VERIFICADO,
+          valor: 'API não disponível',
+          o_que_testado: 'Consulta o nível e o estado de carga da bateria.',
+          significado: 'Este navegador não expõe a API Battery Status.',
+          limitacao: 'A ausência é positiva para a privacidade (evita rastreamento entre separadores).',
+          peso: 'medio'
+        }));
+      }
+
+      return verificacoes;
+    }
+
+    // ------------------------------------------------------------
+    //  8. UI
+    // ------------------------------------------------------------
+    let ultimoRelatorio = null;
+
+    function log(msg, classe = '') {
+      const el = document.getElementById('log');
+      const linha = document.createElement('div');
+      linha.className = 'log-linha ' + classe;
+      const hora = new Date().toLocaleTimeString('pt-PT');
+      linha.textContent = `[${hora}] ${msg}`;
+      el.appendChild(linha);
+      el.scrollTop = el.scrollHeight;
+    }
+
+    function atualizarProgresso(pct) {
+      document.getElementById('progressoFill').style.width = pct + '%';
+    }
+
+    function pausa(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+    function classeEstado(estado) {
+      switch (estado) {
+        case ESTADO.OK:             return 'ok';
+        case ESTADO.ATENCAO:        return 'warn';
+        case ESTADO.CRITICO:        return 'err';
+        case ESTADO.INFO:           return 'info';
+        case ESTADO.NAO_VERIFICADO: return 'nao-verif';
+        default:                    return '';
+      }
+    }
+
+    function iconeEstado(estado) {
+      switch (estado) {
+        case ESTADO.OK:             return '🟢';
+        case ESTADO.ATENCAO:        return '🟡';
+        case ESTADO.CRITICO:        return '🔴';
+        case ESTADO.INFO:           return '🔵';
+        case ESTADO.NAO_VERIFICADO: return '⚪';
+        default:                    return '•';
+      }
+    }
+
+    function badgeEstadoGlobal(estado) {
+      const classes = {
+        sem_problemas: 'badge-sem_problemas',
+        atencao:       'badge-atencao',
+        varios_pontos: 'badge-varios_pontos',
+        incompleto:    'badge-incompleto'
+      };
+      return 'badge-estado ' + (classes[estado] || 'badge-incompleto');
+    }
+
+    // ------------------------------------------------------------
+    //  9. RENDER
+    // ------------------------------------------------------------
+    function renderizarRelatorio(relatorio) {
+      const corPorEstado = {
+        sem_problemas: '#00ff88',
+        atencao:       '#ffcc00',
+        varios_pontos: '#ff8800',
+        incompleto:    '#aaaaaa'
+      };
+      const cor = corPorEstado[relatorio.estado_global] || '#aaaaaa';
+
+      const circulo = document.getElementById('scoreCirculo');
+      const valorEl = document.getElementById('scoreValor');
+      const tituloEl = document.getElementById('scoreTitulo');
+      const descEl = document.getElementById('scoreDescricao');
+
+      circulo.style.background = `conic-gradient(${cor} ${relatorio.cobertura * 3.6}deg, rgba(255,255,255,0.1) 0deg)`;
+      circulo.style.color = cor;
+      valorEl.textContent = relatorio.cobertura + '%';
+      tituloEl.textContent = relatorio.estado_global_label;
+      tituloEl.style.color = cor;
+      descEl.textContent = `Cobertura: ${relatorio.cobertura}% · ${relatorio.categorias.length} categorias · ${relatorio.categorias.reduce((a,c) => a + c.total, 0)} verificações`;
+
+      const grid = document.getElementById('grid');
+      grid.innerHTML = '';
+
+      relatorio.categorias.forEach(cat => {
+        const cartao = document.createElement('div');
+        cartao.className = 'cartao';
+
+        const header = document.createElement('h3');
+        const icone = document.createElement('span');
+        icone.className = 'icone';
+        icone.textContent = cat.meta.icone;
+        const texto = document.createElement('span');
+        texto.textContent = ' ' + cat.meta.nome + ' ' + iconeEstado(cat.estado);
+        header.appendChild(icone);
+        header.appendChild(texto);
+
+        const scoreLinha = document.createElement('div');
+        scoreLinha.className = 'item';
+        const rotuloScore = document.createElement('span');
+        rotuloScore.className = 'rotulo';
+        rotuloScore.textContent = 'Score';
+        const valorScore = document.createElement('span');
+        valorScore.className = 'valor ' + classeEstado(cat.estado);
+        valorScore.textContent = cat.score === null ? '— (informativo)' : cat.score + '/100';
+        scoreLinha.appendChild(rotuloScore);
+        scoreLinha.appendChild(valorScore);
+
+        cartao.appendChild(header);
+        cartao.appendChild(scoreLinha);
+
+        cat.verificacoes.forEach(v => {
+          const bloco = document.createElement('div');
+          bloco.className = 'verificacao-bloco';
+
+          const cab = document.createElement('div');
+          cab.className = 'verificacao-cabecalho';
+
+          const rot = document.createElement('span');
+          rot.className = 'rotulo';
+          rot.style.color = '#ff8888';
+          rot.textContent = iconeEstado(v.estado) + ' ' + v.titulo;
+
+          const val = document.createElement('span');
+          val.className = 'valor ' + classeEstado(v.estado);
+          val.style.textAlign = 'right';
+          val.style.fontWeight = 'bold';
+          val.textContent = v.valor;
+
+          cab.appendChild(rot);
+          cab.appendChild(val);
+          bloco.appendChild(cab);
+
+          const det = document.createElement('div');
+          det.className = 'detalhes-verificacao';
+
+          const l1 = document.createElement('div');
+          l1.className = 'linha';
+          const r1 = document.createElement('span');
+          r1.className = 'rotulo-detalhe';
+          r1.textContent = 'O que foi testado: ';
+          l1.appendChild(r1);
+          l1.appendChild(document.createTextNode(v.o_que_testado));
+
+          const l2 = document.createElement('div');
+          l2.className = 'linha';
+          const r2 = document.createElement('span');
+          r2.className = 'rotulo-detalhe';
+          r2.textContent = 'Significado: ';
+          l2.appendChild(r2);
+          l2.appendChild(document.createTextNode(v.significado));
+
+          const l3 = document.createElement('div');
+          l3.className = 'linha';
+          const r3 = document.createElement('span');
+          r3.className = 'rotulo-detalhe';
+          r3.textContent = 'Limitação: ';
+          l3.appendChild(r3);
+          l3.appendChild(document.createTextNode(v.limitacao));
+
+          det.appendChild(l1);
+          det.appendChild(l2);
+          det.appendChild(l3);
+
+          bloco.appendChild(det);
+          cartao.appendChild(bloco);
+        });
+
+        grid.appendChild(cartao);
+      });
+
+      const badge = document.getElementById('debugBadge');
+      badge.className = badgeEstadoGlobal(relatorio.estado_global);
+      badge.textContent = `${relatorio.estado_global} · ${relatorio.estado_global_label}`;
+
+      const resumo = {
+        ferramenta: relatorio.ferramenta,
+        versao: relatorio.versao,
+        estado_global: relatorio.estado_global,
+        estado_global_label: relatorio.estado_global_label,
+        cobertura: relatorio.cobertura,
+        categorias: relatorio.categorias.map(c => ({
+          categoria: c.categoria,
+          nome: c.meta.nome,
+          estado: c.estado,
+          score: c.score,
+          contagem: { ok: c.ok, info: c.info, atencao: c.atencao, critico: c.critico, nao_verificado: c.nao_verificado },
+          verificacoes: c.verificacoes.map(v => ({
+            id: v.id, titulo: v.titulo, estado: v.estado, valor: v.valor,
+            o_que_testado: v.o_que_testado,
+            significado: v.significado,
+            limitacao: v.limitacao
+          }))
+        })),
+        limitacoes_gerais: relatorio.limitacoes_gerais
+      };
+      document.getElementById('debugPre').textContent = JSON.stringify(resumo, null, 2);
+    }
+
+    // ------------------------------------------------------------
+    //  10. ANÁLISE PRINCIPAL
+    // ------------------------------------------------------------
+    async function correrAnalise() {
+      const btn = document.getElementById('btnAnalisar');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="loader"></span> A ANALISAR...';
+
+      document.getElementById('progressoScan').classList.add('ativo');
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('grid').innerHTML = '';
+      document.getElementById('debugPre').textContent = 'Análise em curso...';
+
+      log('A iniciar PrivacyLens v2.2...', 'info');
+      log(`Ambiente: ${ehAmbienteLocal() ? 'local (desenvolvimento)' : 'remoto (público)'}`, 'info');
+
+      const inicio = new Date().toISOString();
+      const dadosBrutos = {
+        userAgent: navigator.userAgent,
+        origem: location.origin,
+        ambienteLocal: ehAmbienteLocal()
+      };
+      const verificacoes = [];
+
+      // Fase 1: Sistema
+      try {
+        atualizarProgresso(15);
+        log('A verificar sistema...', 'info');
+        const vSis = verificarSistema();
+        verificacoes.push(...vSis);
+        log(`✓ Sistema: ${vSis.length} verificações recolhidas.`, 'ok');
+        vSis.forEach(v => log(`  ${iconeEstado(v.estado)} ${v.titulo}: ${v.valor}`, classeEstado(v.estado)));
+      } catch (e) {
+        log('✗ Falha ao verificar sistema: ' + (e && e.message || e), 'err');
+        console.error(e);
+      }
+
+      await pausa(200);
+
+      // Fase 2: Ligação
+      try {
+        atualizarProgresso(40);
+        log('A verificar ligação...', 'info');
+        const vLig = await verificarLigacao();
+        verificacoes.push(...vLig);
+        log(`✓ Ligação: ${vLig.length} verificações recolhidas.`, 'ok');
+        vLig.forEach(v => log(`  ${iconeEstado(v.estado)} ${v.titulo}: ${v.valor}`, classeEstado(v.estado)));
+      } catch (e) {
+        log('✗ Falha ao verificar ligação: ' + (e && e.message || e), 'err');
+        console.error(e);
+      }
+
+      await pausa(200);
+
+      // Fase 3: Hardware
+      try {
+        atualizarProgresso(70);
+        log('A verificar características do dispositivo...', 'info');
+        const vHw = await verificarHardware();
+        verificacoes.push(...vHw);
+        log(`✓ Características: ${vHw.length} verificações recolhidas.`, 'ok');
+        vHw.forEach(v => log(`  ${iconeEstado(v.estado)} ${v.titulo}: ${v.valor}`, classeEstado(v.estado)));
+      } catch (e) {
+        log('✗ Falha ao verificar características: ' + (e && e.message || e), 'err');
+        console.error(e);
+      }
+
+      atualizarProgresso(100);
+      await pausa(300);
+      document.getElementById('progressoScan').classList.remove('ativo');
+
+      // Fase 4: Construção — CORRIGIDO: dados_brutos: dadosBrutos
+      let relatorio;
+      try {
+        log('A construir relatório...', 'info');
+        const fim = new Date().toISOString();
+        relatorio = construirRelatorio({
+          inicio,
+          fim,
+          verificacoes,
+          dados_brutos: dadosBrutos   // ✅ FIX
+        });
+        log('✓ Relatório construído.', 'ok');
+      } catch (e) {
+        log('✗ Falha ao construir relatório: ' + (e && e.message || e), 'err');
+        console.error(e);
+        btn.disabled = false;
+        btn.innerHTML = '▶ TENTAR NOVAMENTE';
+        return;
+      }
+
+      // Fase 5: Render
+      try {
+        log('A renderizar resultados...', 'info');
+        renderizarRelatorio(relatorio);
+        log('✓ Resultados renderizados.', 'ok');
+      } catch (e) {
+        log('✗ Falha ao renderizar: ' + (e && e.message || e), 'err');
+        console.error(e);
+        try { document.getElementById('debugPre').textContent = JSON.stringify(relatorio, null, 2); } catch (e2) {}
+      }
+
+      ultimoRelatorio = relatorio;
+      window.__privacylens_relatorio = relatorio;
+      console.log('%c[PrivacyLens v2.2] Relatório:', 'color:#00ff88;font-weight:bold');
+      console.dir(relatorio, { depth: null });
+
+      log('====================', 'ok');
+      log(`Cobertura: ${relatorio.cobertura}%`, 'ok');
+      log(`Estado global: ${relatorio.estado_global_label}`, 'info');
+      log('====================', 'ok');
+
+      document.getElementById('btnRelatorio').disabled = false;
+      btn.disabled = false;
+      btn.innerHTML = '▶ RE-ANALISAR';
+    }
+
+    // ------------------------------------------------------------
+    //  11. DESCARREGAR
+    // ------------------------------------------------------------
+    function descarregarRelatorio() {
+      if (!ultimoRelatorio) return;
+      const blob = new Blob([JSON.stringify(ultimoRelatorio, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `privacylens-relatorio-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      log('✓ Relatório JSON descarregado.', 'ok');
+    }
+
+    // ------------------------------------------------------------
+    //  12. AUTO-TESTES DO MOTOR (Fase C antecipada)
+    // ------------------------------------------------------------
+    function correrAutoTestes() {
+      const testes = [
+        {
+          nome: 'criarVerificacao rejeita categoria inválida',
+          fn: () => {
+            try {
+              criarVerificacao({ id:'x', categoria:'inexistente', titulo:'X', estado:'ok', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              return false;
+            } catch (e) { return e.message.includes('Categoria desconhecida'); }
+          }
+        },
+        {
+          nome: 'criarVerificacao rejeita estado inválido',
+          fn: () => {
+            try {
+              criarVerificacao({ id:'x', categoria:'ligacao', titulo:'X', estado:'invalido', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              return false;
+            } catch (e) { return e.message.includes('Estado desconhecido'); }
+          }
+        },
+        {
+          nome: 'criarVerificacao rejeita falta de id',
+          fn: () => {
+            try {
+              criarVerificacao({ categoria:'ligacao', titulo:'X', estado:'ok', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              return false;
+            } catch (e) { return e.message.includes('obrigatórios'); }
+          }
+        },
+        {
+          nome: 'construirRelatorio funciona com array vazio',
+          fn: () => {
+            try {
+              const r = construirRelatorio({ inicio:'x', fim:'y', verificacoes: [], dados_brutos:{} });
+              return r && r.ferramenta === 'PrivacyLens' && r.cobertura === 0 && r.estado_global === 'incompleto';
+            } catch (e) { return false; }
+          }
+        },
+        {
+          nome: 'construirRelatorio com só uma verificação OK',
+          fn: () => {
+            try {
+              const v = criarVerificacao({ id:'a', categoria:'ligacao', titulo:'A', estado:'ok', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              const r = construirRelatorio({ inicio:'x', fim:'y', verificacoes:[v], dados_brutos:{} });
+              return r.cobertura === 100 && r.estado_global === 'sem_problemas';
+            } catch (e) { return false; }
+          }
+        },
+        {
+          nome: 'construirRelatorio com 1 não verificado → incompleto',
+          fn: () => {
+            try {
+              const v = criarVerificacao({ id:'a', categoria:'ligacao', titulo:'A', estado:'nao_verificado', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              const r = construirRelatorio({ inicio:'x', fim:'y', verificacoes:[v], dados_brutos:{} });
+              return r.cobertura === 0 && r.estado_global === 'incompleto';
+            } catch (e) { return false; }
+          }
+        },
+        {
+          nome: 'construirRelatorio com 1 crítico → varios_pontos',
+          fn: () => {
+            try {
+              const v = criarVerificacao({ id:'a', categoria:'ligacao', titulo:'A', estado:'critico', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              const r = construirRelatorio({ inicio:'x', fim:'y', verificacoes:[v], dados_brutos:{} });
+              return r.estado_global === 'varios_pontos';
+            } catch (e) { return false; }
+          }
+        },
+        {
+          nome: 'construirRelatorio com 1 atenção → atencao',
+          fn: () => {
+            try {
+              const v = criarVerificacao({ id:'a', categoria:'ligacao', titulo:'A', estado:'atencao', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' });
+              const r = construirRelatorio({ inicio:'x', fim:'y', verificacoes:[v], dados_brutos:{} });
+              return r.estado_global === 'atencao';
+            } catch (e) { return false; }
+          }
+        },
+        {
+          nome: 'INFO não afeta o score da categoria',
+          fn: () => {
+            const vs = [
+              criarVerificacao({ id:'a', categoria:'ligacao', titulo:'A', estado:'ok', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' }),
+              criarVerificacao({ id:'b', categoria:'ligacao', titulo:'B', estado:'info', valor:'v',
+                o_que_testado:'t', significado:'s', limitacao:'l' })
+            ];
+            const cat = agregarCategoria('ligacao', vs);
+            return cat.score === 100; // 1 OK / 1 pontuável
+          }
+        },
+        {
+          nome: 'ehAmbienteLocal deteta localhost',
+          fn: () => typeof ehAmbienteLocal() === 'boolean'
+        },
+        {
+          nome: 'verificarSistema devolve array',
+          fn: () => Array.isArray(verificarSistema()) && verificarSistema().length > 0
+        },
+        {
+          nome: 'verificarSistema tem todos os campos obrigatórios',
+          fn: () => {
+            const vs = verificarSistema();
+            return vs.every(v =>
+              v.id && v.categoria && v.titulo && v.estado &&
+              v.o_que_testado && v.significado && v.limitacao
+            );
+          }
+        }
+      ];
+
+      let passaram = 0;
+      const resultados = [];
+      testes.forEach(t => {
+        let ok = false;
+        try { ok = t.fn() === true; } catch (e) { ok = false; }
+        if (ok) passaram++;
+        resultados.push({ nome: t.nome, ok });
+      });
+
+      // Render
+      const el = document.getElementById('autotestesResultado');
+      el.innerHTML = '';
+      const resumo = document.createElement('div');
+      resumo.style.marginBottom = '8px';
+      resumo.style.fontWeight = 'bold';
+      resumo.textContent = `${passaram}/${testes.length} testes passaram`;
+      resumo.style.color = passaram === testes.length ? '#00ff88' : '#ff5555';
+      el.appendChild(resumo);
+
+      resultados.forEach(r => {
+        const l = document.createElement('div');
+        l.className = 'linha-teste ' + (r.ok ? 'passou' : 'falhou');
+        l.textContent = (r.ok ? '✓ ' : '✗ ') + r.nome;
+        el.appendChild(l);
+      });
+
+      console.log(`[Auto-testes] ${passaram}/${testes.length} passaram`);
+      return { passaram, total: testes.length, resultados };
+    }
+
+    // ------------------------------------------------------------
+    //  13. API PARA TESTES
+    // ------------------------------------------------------------
+    window.PrivacyLens = {
+      ESTADO, CATEGORIAS,
+      criarVerificacao,
+      agregarCategoria,
+      calcularEstadoGlobal,
+      construirRelatorio,
+      verificarSistema,
+      verificarLigacao,
+      verificarHardware,
+      ehAmbienteLocal,
+      correrAutoTestes,
+      versao: '2.2'
+    };
+
+    // Corre os auto-testes no arranque
+    window.addEventListener('DOMContentLoaded', () => {
+      try { correrAutoTestes(); } catch (e) { console.error('Falha nos auto-testes:', e); }
+    });
+  </script>
+
+</body>
+</html>
